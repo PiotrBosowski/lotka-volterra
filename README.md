@@ -1,0 +1,1 @@
+This repository is a project for Matematyczne Modelowanie Struktur i Procesów Biologicznych subject.
