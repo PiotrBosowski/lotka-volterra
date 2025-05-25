@@ -11,7 +11,7 @@ class LotkaVoltera:
     def __call__(self, _, current_point):
         V, P = current_point
         dVdt = self.r * V - self.a * V * P
-        dPdt = - self.m * P + self.b * V * P 
+        dPdt = - self.m * P + self.a * self.b * V * P 
         return [dVdt, dPdt]
     
     def stability_points(self) -> List:
@@ -44,6 +44,6 @@ class LotkaVolteraPreyShelters(LotkaVoltera):
     def __call__(self, _, current_point):
         V, P = current_point
         dVdt = self.r * V - self.a * (V - self.s) * P
-        dPdt = - self.m * P + self.b * (V - self.s) * P 
+        dPdt = - self.m * P + self. a * self.b * (V - self.s) * P 
         return [dVdt, dPdt]
     
