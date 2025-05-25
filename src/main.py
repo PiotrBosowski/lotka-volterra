@@ -59,9 +59,23 @@ def solve_ode(model, time_limit, solver, resolution=10):
 
 t, V, P = solve_ode(model=model, solver=solver_choice, time_limit=T, resolution=resolution)
 
-def plot_series_and_phase(t, V, P):
+def plot_series_and_phase(t, V, P, stability_points=None):
+    """
+    Parameters
+    ----------
+    t : 1-d array-like
+        Time vector.
+    V : 1-d array-like
+        Prey population over time.
+    P : 1-d array-like
+        Predator population over time.
+    stability_points : iterable of (float, float, str), optional
+        Each tuple is (V, P, label).  Example:
+            stability_points=[(12.5, 7.9, "co-existence")]
+    """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
+    # ── time-series panel ──────────────────────────────────────────────
     ax1.plot(t, V, label="Prey")
     ax1.plot(t, P, label="Predator")
     ax1.set_title("Population vs Time")
@@ -69,12 +83,27 @@ def plot_series_and_phase(t, V, P):
     ax1.set_ylabel("Population")
     ax1.legend()
 
-    ax2.plot(V, P)
+    # ── phase-space panel ─────────────────────────────────────────────
+    ax2.plot(V, P, label="Trajectory")
+
+    # add stability points, if any
+    if stability_points is not None:
+        for v, p, lbl in stability_points:
+            # dashed guides in phase space
+            ax2.axvline(v, linestyle="--", color="gray", alpha=0.7)
+            ax2.axhline(p, linestyle="--", color="gray", alpha=0.7)
+
+            # equilibrium point
+            ax2.scatter(v, p, color="red", zorder=5)
+            ax2.text(v, p, f"  {lbl}", color="red",
+                     va="bottom", ha="left")
+
     ax2.set_title("Phase Space (Prey vs Predator)")
     ax2.set_xlabel("Prey Population")
     ax2.set_ylabel("Predator Population")
+    ax2.legend()
 
     st.pyplot(fig)
 
 
-plot_series_and_phase(t, V, P)
+plot_series_and_phase(t, V, P, model.stability_points())
