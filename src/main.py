@@ -2,18 +2,16 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
+from scipy.signal import find_peaks
 
-from models import LotkaVoltera, LotkaVolteraLimitedEnviron, LotkaVolteraPreyShelters
+
+from models import models
+
 
 st.set_page_config(page_title="Lotka-Volterra Simulator", layout="wide")
 st.title("Lotka-Volterra model 🐇🦊")
 
 
-models = {
-    "Base model": LotkaVoltera,
-    "Limited environment": LotkaVolteraLimitedEnviron,
-    "Prey shelters": LotkaVolteraPreyShelters,
-}
 
 model_choice = st.sidebar.selectbox("Choose a model:", models.keys())
 
@@ -29,7 +27,7 @@ model_params = {'r': r, 'a': a, 'b': b, 'm': m}
 
 if model_choice == "Limited environment":
     st.sidebar.header("Additional parameters")
-    k = st.sidebar.slider("k - Environment capacity", 10, 500, 100, 10)
+    k = st.sidebar.slider("k - Environment capacity", 1, 500, 100, 1)
     model_params["k"] = k
 
 elif model_choice == "Prey shelters":
@@ -42,7 +40,7 @@ V0 = st.sidebar.slider("Initial Prey (V₀)", 1, 50, 10, step=1)
 P0 = st.sidebar.slider("Initial Predator (P₀)", 1, 50, 5, step=1)
 
 with st.sidebar.expander("Simulation settings"):
-    T = st.slider("Simulation Duration (T)", 10, 200, 50, step=1)
+    T = st.slider("Simulation Duration (T)", 10, 1000, 50, step=1)
     resolution = st.slider("Time resolution (points per unit)", 1, 100, 5, step=1)
     solver_choice = st.selectbox('Choose a solver:', ['DOP853', 'RK45', 'RK23'])
 
@@ -57,7 +55,6 @@ def solve_ode(model, time_limit, solver, resolution=10):
     return t, prey, predator
 
 
-t, V, P = solve_ode(model=model, solver=solver_choice, time_limit=T, resolution=resolution)
 
 def plot_series_and_phase(t, V, P, stability_points=None):
     """
@@ -95,7 +92,7 @@ def plot_series_and_phase(t, V, P, stability_points=None):
 
             # equilibrium point
             ax2.scatter(v, p, color="red", zorder=5)
-            ax2.text(v, p, f"  {lbl}", color="red",
+            ax2.text(v, p, f"  {v:.3f}, {p:.3f}", color="red",
                      va="bottom", ha="left")
 
     ax2.set_title("Phase Space (Prey vs Predator)")
@@ -106,4 +103,77 @@ def plot_series_and_phase(t, V, P, stability_points=None):
     st.pyplot(fig)
 
 
-plot_series_and_phase(t, V, P, model.stability_points())
+def estimate_period(t, signal):
+    peaks, _ = find_peaks(signal)
+    if len(peaks) > 1:
+        peak_times = t[peaks]
+        periods = np.diff(peak_times)
+        average_period = np.mean(periods)
+        return average_period
+    return None
+
+
+def average_populations(t, signal):
+    peaks, _ = find_peaks(V)  # Use prey peaks to define cycles
+    if len(peaks) < 2:
+        return None
+
+    cycle_avgs = []
+    for i in range(len(peaks) - 1):
+        t_start = t[peaks[i]]
+        t_end = t[peaks[i + 1]]
+        mask = (t >= t_start) & (t <= t_end)
+        cycle_avgs.append(np.mean(signal[mask]))
+
+    return [float(a) for a in cycle_avgs]
+
+
+def max_population(t, signal):
+    """
+    Calculates the average of maximum population values within each prey-defined cycle.
+
+    Parameters:
+        t : 1D array-like
+            Time array.
+        signal : 1D array-like
+            Population signal (V or P).
+
+    Returns:
+        avg_max_value : float or None
+            Average maximum population across all full cycles, or None if not enough peaks.
+    """
+    peaks, _ = find_peaks(V)  # Use prey peaks to define cycle boundaries
+    if len(peaks) < 2:
+        return None
+
+    max_values = []
+    for i in range(len(peaks) - 1):
+        t_start = t[peaks[i]]
+        t_end = t[peaks[i + 1]]
+        mask = (t >= t_start) & (t <= t_end)
+        max_values.append(np.max(signal[mask]))
+
+    return [float(a) for a in max_values]
+
+
+
+if __name__ == '__main__':
+    t, V, P = solve_ode(model=model, solver=solver_choice, time_limit=T, resolution=resolution)
+
+    plot_series_and_phase(t, V, P, model.stability_points())
+    period = estimate_period(t, V)
+    avg_V = average_populations(t, V)
+    avg_P = average_populations(t, P)
+    max_V = max_population(t, V)
+    max_P = max_population(t, P)
+
+    if period is not None:
+        st.markdown(f"**Periodicity: {period:.2f} time units**")
+    if avg_V:
+        st.markdown(f"**🐇 Prey average populations across cycles (peak to peak): {avg_V}**")
+    if avg_P:
+        st.markdown(f"**🦊 Predator average populations across cycles (peak to peak): {avg_P}**")
+    if max_V:
+        st.markdown(f"**🐇 Prey maximum populations across cycles (peak to peak): {max_V}**")
+    if max_P:
+        st.markdown(f"**🦊 Predator maximum populations across cycles (peak to peak): {max_P}**")

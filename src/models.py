@@ -45,3 +45,10 @@ class LotkaVolteraPreyShelters(LotkaVoltera):
 
     def stability_points(self) -> List:
         return [(0, 0, 'origin'), (self.s + self.m / (self.a * self.b), self.r * (1 / self.a + self.b * self.s / self.m), 'equilibrium')]
+
+
+models = {
+    "Base model": LotkaVoltera,
+    "Limited environment": LotkaVolteraLimitedEnviron,
+    "Prey shelters": LotkaVolteraPreyShelters,
+}
