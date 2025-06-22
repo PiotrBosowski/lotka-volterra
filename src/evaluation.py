@@ -3,11 +3,14 @@ from scipy.signal import find_peaks
 
 
 def estimate_period(t, signal):
+    """
+    Based on 5 consecutive cycles
+    """
     peaks, _ = find_peaks(signal)
-    if len(peaks) > 1:
+    if len(peaks) > 6:
         peak_times = t[peaks]
         periods = np.diff(peak_times)
-        average_period = np.mean(periods)
+        average_period = np.mean(periods[1:6])
         return average_period
     return None
 
@@ -40,28 +43,19 @@ def max_population(t, signal):
     return max_values
 
 
-def stabilization_time(t, V, P, epsilon=0.01):
-    peaks, _ = find_peaks(V)
-    if len(peaks) < 3:
-        return None  # Not enough cycles to compare
+def stabilization_cycles(t, V, epsilon=0.01):  # epsilon = relative threshold
+    V_max_values = max_population(t, V)
 
-    for i in range(1, len(peaks) - 1):
-        # Time window: current cycle vs previous
-        mask_prev = (t >= t[peaks[i - 1]]) & (t <= t[peaks[i]])
-        mask_curr = (t >= t[peaks[i]]) & (t <= t[peaks[i + 1]])
+    if V_max_values is None:
+        return None
 
-        V_prev, V_curr = V[mask_prev], V[mask_curr]
-        P_prev, P_curr = P[mask_prev], P[mask_curr]
+    for i in range(1, len(V_max_values)):
+        delta_V = abs(V_max_values[i] - V_max_values[i - 1])
 
-        # Resample to common length for comparison
-        min_len = min(len(V_prev), len(V_curr))
-        V_prev, V_curr = V_prev[:min_len], V_curr[:min_len]
-        P_prev, P_curr = P_prev[:min_len], P_curr[:min_len]
+        V_ref = abs(V_max_values[i - 1]) if V_max_values[i - 1] != 0 else 1e-8
 
-        delta_V = np.max(np.abs(V_curr - V_prev))
-        delta_P = np.max(np.abs(P_curr - P_prev))
+        if (delta_V / V_ref < epsilon):
+            return i  # Stabilization occurred after `i` full cycles
 
-        if delta_V < epsilon and delta_P < epsilon:
-            return t[peaks[i]]  # Stabilization starts here
+    return None  # Did not stabilize within available cycles
 
-    return None

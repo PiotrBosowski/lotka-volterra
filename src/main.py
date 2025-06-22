@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-from evaluation import average_populations, estimate_period, max_population, stabilization_time
+from evaluation import average_populations, estimate_period, max_population, stabilization_cycles
 from models import models, solve_ode
 from plotting import plot_series_and_phase
 
@@ -29,8 +29,8 @@ if model_choice == "Ograniczona pojemność":
     model_params["k"] = k
 
 elif model_choice == "Kryjówki":
-    st.sidebar.header("Marametry modyfikacji")
-    s = st.sidebar.slider("Liczba kryjówek (s)", 0, 25, 3, step=1)
+    st.sidebar.header("Parametry modyfikacji")
+    s = st.sidebar.slider("Liczba kryjówek (s)", 0., 25., 1., step=0.01)
     model_params["s"] = s
 
 st.sidebar.markdown("**Początkowe liczebności**")
@@ -38,8 +38,8 @@ V0 = st.sidebar.slider("Liczebność ofiar (V₀)", 1, 50, 10, step=1)
 P0 = st.sidebar.slider("Liczebność drapieżników (P₀)", 1, 50, 5, step=1)
 
 with st.sidebar.expander("Ustawienia symulacji"):
-    T = st.slider("Czas trwania (T)", 10, 1000, 50, step=1)
-    resolution = st.slider("Rozdzielczość (pkt / jedn. czas.)", 1, 100, 5, step=1)
+    T = st.slider("Czas trwania (T)", 10, 1000, 500, step=1)
+    resolution = st.slider("Rozdzielczość (pkt / jedn. czas.)", 1, 100, 25, step=1)
     solver_choice = st.selectbox('Algorytm rozwiązywania ODE', ['DOP853', 'RK45', 'RK23'])
 
 model = models[model_choice](**model_params)
@@ -54,10 +54,17 @@ if __name__ == '__main__':
     avg_P = average_populations(t, P)
     max_V = max_population(t, V)
     max_P = max_population(t, P)
-    stab_time = stabilization_time(t, V, P, epsilon=0.1)
+    stab_cycles = stabilization_cycles(t, V)
 
     if period is not None:
         st.markdown(f"**Czas odradzania się populacji: {period:.2f}**")
+    else:
+        st.markdown(f"**Czas odradzania się populacji: nieustalony**")
+
+    if stab_cycles is not None:
+        st.markdown(f"**Stabilizacja układu następuje po: {stab_cycles} cyklach**")
+    else:
+        st.markdown("**Układ nie osiągnął stabilizacji w czasie symulacji**")
 
     if avg_V and avg_P and max_V and max_P:
         num_cycles = min(len(avg_V), len(avg_P), len(max_V), len(max_P))
@@ -71,8 +78,3 @@ if __name__ == '__main__':
 
         st.markdown("### Statystyki populacji dla kolejnych cykli")
         st.dataframe(df_stats, use_container_width=True, hide_index=True)
-
-    if stab_time is not None:
-        st.markdown(f"**🪢 Stabilizacja układu następuje po: {stab_time:.2f} jednostkach czasu**")
-    else:
-        st.markdown("**🪢 Układ nie osiągnął stabilizacji w czasie symulacji**")
