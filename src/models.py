@@ -1,5 +1,6 @@
 from typing import List
-
+import numpy as np
+from scipy.integrate import solve_ivp
 
 class LotkaVoltera:
     def __init__(self, r: float, a: float, b: float, m: float):
@@ -48,7 +49,15 @@ class LotkaVolteraPreyShelters(LotkaVoltera):
 
 
 models = {
-    "Base model": LotkaVoltera,
-    "Limited environment": LotkaVolteraLimitedEnviron,
-    "Prey shelters": LotkaVolteraPreyShelters,
+    "Model podstawowy": LotkaVoltera,
+    "Ograniczona pojemność": LotkaVolteraLimitedEnviron,
+    "Kryjówki": LotkaVolteraPreyShelters,
 }
+
+
+def solve_ode(model, time_limit, initial_state, solver='DOP853', resolution=10):
+    t_span = (0, time_limit)
+    t_eval = np.linspace(t_span[0], t_span[1], time_limit * resolution)
+    sol = solve_ivp(fun=model, t_span=t_span, y0=initial_state, method=solver, t_eval=t_eval)
+    t, prey, predator = sol.t, sol.y[0], sol.y[1]
+    return t, prey, predator
